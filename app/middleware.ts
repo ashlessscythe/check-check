@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
+import { UserRole } from "@prisma/client";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -8,13 +9,67 @@ export interface AuthRequest extends NextRequest {
   user?: {
     id: string;
     email: string;
-    roleId: string;
-    role?: {
-      name: string;
-      permissions: { action: string }[];
-    };
+    role: UserRole;
   };
 }
+
+export function middleware(request: NextRequest) {
+  // Public paths that don't require authentication
+  const publicPaths = ["/api/auth/login", "/api/auth/register"];
+  if (publicPaths.includes(request.nextUrl.pathname)) {
+    return NextResponse.next();
+  }
+
+  const token = request.cookies.get("token")?.value;
+
+  // If no token and not on public path, redirect to root
+  if (!token) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as {
+      id: string;
+      email: string;
+      role: UserRole;
+    };
+
+    console.log(`Decoded Role: ${decoded.role}`);
+    // Role-based routing
+    const path = request.nextUrl.pathname;
+
+    // Admin can access everything
+    if (decoded.role === "ADMIN") {
+      return NextResponse.next();
+    }
+
+    // Supervisor can access checklist and root
+    if (decoded.role === "SUPERVISOR") {
+      if (path === "/" || path === "/checklist") {
+        return NextResponse.next();
+      }
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+
+    // Regular users can only access root
+    if (decoded.role === "USER") {
+      if (path === "/") {
+        return NextResponse.next();
+      }
+      // Redirect to root for any other path
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+
+    return NextResponse.redirect(new URL("/", request.url));
+  } catch (error) {
+    // Invalid token, redirect to root
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+}
+
+export const config = {
+  matcher: ["/", "/checklist", "/dashboard", "/api/:path*"],
+};
 
 export async function authMiddleware(req: NextRequest) {
   try {
@@ -30,7 +85,7 @@ export async function authMiddleware(req: NextRequest) {
     const decoded = jwt.verify(token, JWT_SECRET) as {
       id: string;
       email: string;
-      roleId: string;
+      role: UserRole;
     };
 
     const user = await prisma.user.findUnique({
@@ -38,17 +93,7 @@ export async function authMiddleware(req: NextRequest) {
       select: {
         id: true,
         email: true,
-        roleId: true,
-        role: {
-          select: {
-            name: true,
-            permissions: {
-              select: {
-                action: true,
-              },
-            },
-          },
-        },
+        role: true,
       },
     });
 
@@ -77,7 +122,7 @@ export function withAuth(handler: (req: AuthRequest) => Promise<NextResponse>) {
   };
 }
 
-export function requirePermission(permission: string) {
+export function requireRole(role: UserRole) {
   return function (handler: (req: AuthRequest) => Promise<NextResponse>) {
     return async function (req: AuthRequest) {
       const response = await authMiddleware(req);
@@ -87,33 +132,7 @@ export function requirePermission(permission: string) {
       }
 
       const user = (req as AuthRequest).user;
-      const hasPermission = user?.role?.permissions.some(
-        (p) => p.action === permission
-      );
-
-      if (!hasPermission) {
-        return NextResponse.json(
-          { error: "Permission denied" },
-          { status: 403 }
-        );
-      }
-
-      return handler(req as AuthRequest);
-    };
-  };
-}
-
-export function requireRole(roleName: string) {
-  return function (handler: (req: AuthRequest) => Promise<NextResponse>) {
-    return async function (req: AuthRequest) {
-      const response = await authMiddleware(req);
-
-      if (response.status === 401) {
-        return response;
-      }
-
-      const user = (req as AuthRequest).user;
-      if (user?.role?.name !== roleName) {
+      if (user?.role !== role) {
         return NextResponse.json(
           { error: "Role not authorized" },
           { status: 403 }

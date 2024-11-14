@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import * as bcrypt from "bcryptjs";
 import * as jwt from "jsonwebtoken";
+import { UserRole } from "@prisma/client";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 const SALT_ROUNDS = 10;
@@ -29,46 +30,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get or create default user role
-    const defaultRole = await prisma.role.upsert({
-      where: { name: "user" },
-      update: {},
-      create: {
-        name: "user",
-        permissions: {
-          create: [
-            { action: "check-in" },
-            { action: "check-out" },
-            { action: "view-own-history" },
-          ],
-        },
-      },
-    });
-
     // Hash password
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
-    // Create new user
+    // Create new user with default USER role
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
-        roleId: defaultRole.id,
+        role: UserRole.USER, // Default role is USER
       },
       select: {
         id: true,
         email: true,
-        roleId: true,
-        role: {
-          select: {
-            name: true,
-            permissions: {
-              select: {
-                action: true,
-              },
-            },
-          },
-        },
+        role: true,
       },
     });
 
@@ -77,20 +52,28 @@ export async function POST(req: NextRequest) {
       {
         id: user.id,
         email: user.email,
-        roleId: user.roleId,
-        roleName: user.role.name,
-        permissions: user.role.permissions.map(
-          (p: { action: string }) => p.action
-        ),
+        role: user.role,
       },
       JWT_SECRET,
       { expiresIn: "24h" }
     );
 
-    return NextResponse.json({
-      user,
-      token,
+    // Create response with user data
+    const response = NextResponse.json({
+      user: user,
     });
+
+    // Set cookie with the token
+    response.cookies.set({
+      name: "token",
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    });
+
+    return response;
   } catch (error) {
     console.error("Registration error:", error);
     return NextResponse.json(

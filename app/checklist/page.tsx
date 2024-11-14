@@ -14,12 +14,22 @@ export default function Checklist() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    // Redirect if not authenticated or if user role is not SUPERVISOR or ADMIN
+    if (
+      !isAuthenticated ||
+      !user ||
+      (user.role !== "SUPERVISOR" && user.role !== "ADMIN")
+    ) {
       router.push("/");
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, user, router]);
 
-  if (!isAuthenticated || !user) {
+  // Don't render anything if not authenticated or if user role is not SUPERVISOR or ADMIN
+  if (
+    !isAuthenticated ||
+    !user ||
+    (user.role !== "SUPERVISOR" && user.role !== "ADMIN")
+  ) {
     return null;
   }
 

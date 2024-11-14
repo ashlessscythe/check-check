@@ -22,17 +22,7 @@ export async function POST(req: NextRequest) {
         id: true,
         email: true,
         password: true,
-        roleId: true,
-        role: {
-          select: {
-            name: true,
-            permissions: {
-              select: {
-                action: true,
-              },
-            },
-          },
-        },
+        role: true,
       },
     });
 
@@ -52,28 +42,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create JWT token with role and permissions
+    // Create JWT token with role
     const token = jwt.sign(
       {
         id: user.id,
         email: user.email,
-        roleId: user.roleId,
-        roleName: user.role.name,
-        permissions: user.role.permissions.map(
-          (p: { action: string }) => p.action
-        ),
+        role: user.role,
       },
       JWT_SECRET,
       { expiresIn: "24h" }
     );
 
-    // Remove password from response
+    // Create response with user data (excluding password)
     const { password: _, ...userWithoutPassword } = user;
 
-    return NextResponse.json({
+    // Create cookie with the token
+    const response = NextResponse.json({
       user: userWithoutPassword,
-      token,
     });
+
+    response.cookies.set({
+      name: "token",
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    });
+
+    return response;
   } catch (error) {
     console.error("Login error:", error);
     return NextResponse.json(

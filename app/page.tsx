@@ -3,6 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import { LoginModal } from "./components/login-modal";
 import { useAutoFocus } from "./hooks/useAutoFocus";
+import { useSelector, useDispatch } from "react-redux";
+import { logout } from "@/store/store";
+import type { RootState } from "@/store/store";
 
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Building Check-In";
 
@@ -12,6 +15,8 @@ export default function Home() {
   const [message, setMessage] = useState("Please scan your barcode");
   const inputRef = useAutoFocus<HTMLInputElement>({ disabled: showLoginModal });
   const clearTimerRef = useRef<NodeJS.Timeout>();
+  const dispatch = useDispatch();
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
 
   // Auto-clear input after 2 seconds of inactivity
   useEffect(() => {
@@ -51,6 +56,14 @@ export default function Home() {
     }
   };
 
+  const handleAuthAction = () => {
+    if (isAuthenticated) {
+      dispatch(logout());
+    } else {
+      setShowLoginModal(true);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-100">
       {/* Header */}
@@ -64,10 +77,14 @@ export default function Home() {
               {APP_NAME}
             </button>
             <button
-              onClick={() => setShowLoginModal(true)}
-              className="inline-flex items-center px-4 py-2 my-3 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+              onClick={handleAuthAction}
+              className={`inline-flex items-center px-4 py-2 my-3 border border-transparent text-sm font-medium rounded-md transition-colors ${
+                isAuthenticated
+                  ? "text-white bg-red-600 hover:bg-red-700"
+                  : "text-gray-700 bg-gray-200 hover:bg-gray-300"
+              }`}
             >
-              Login
+              {isAuthenticated ? "Logout" : "Login"}
             </button>
           </div>
         </div>

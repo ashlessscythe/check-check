@@ -1,12 +1,13 @@
 import { configureStore } from "@reduxjs/toolkit";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { UserRole } from "@prisma/client";
 
 // Auth Slice
 interface AuthState {
   user: {
     id: string;
     email: string;
-    roleId: string;
+    role: UserRole;
   } | null;
   token: string | null;
   isAuthenticated: boolean;
