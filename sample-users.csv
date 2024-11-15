@@ -1,0 +1,4 @@
+email,role,password,dept
+john@example.com,ADMIN,secret123,IT
+jane@example.com,SUPERVISOR,pass456,HR
+bob@example.com,USER,pwd789,Sales

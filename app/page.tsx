@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { LoginModal } from "./components/login-modal";
 import { useAutoFocus } from "./hooks/useAutoFocus";
 import { useSelector, useDispatch } from "react-redux";
-import { logout } from "@/store/store";
-import type { RootState } from "@/store/store";
+import { logout } from "./store/store";
+import type { RootState } from "./store/store";
 
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Building Check-In";
 
@@ -18,7 +18,6 @@ export default function Home() {
   const dispatch = useDispatch();
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
 
-  // Auto-clear input after 2 seconds of inactivity
   useEffect(() => {
     if (barcodeInput) {
       if (clearTimerRef.current) {
@@ -39,11 +38,9 @@ export default function Home() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (barcodeInput) {
-      // Handle barcode submission
       console.log("Barcode submitted:", barcodeInput);
       setBarcodeInput("");
       setMessage("Processing...");
-      // Simulate processing delay
       setTimeout(() => {
         setMessage("Please scan your barcode");
       }, 1500);
@@ -66,7 +63,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-100">
-      {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
@@ -90,7 +86,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-lg mx-auto mt-10 px-4">
         <div className="bg-white shadow-lg rounded-lg p-8">
           <h2 className="text-center text-2xl font-bold text-slate-800 mb-8">
@@ -119,7 +114,6 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Login Modal */}
       {showLoginModal && (
         <LoginModal onClose={() => setShowLoginModal(false)} />
       )}
